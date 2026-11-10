@@ -20,7 +20,7 @@ import { Busabase } from "busabase-sdk";
 
 const bb = new Busabase({
   baseUrl: "http://localhost:15419", // or omit for Busabase Cloud
-  apiKey: process.env.BUSABASE_API_KEY, // cloud only; a local OSS server is open
+  apiKey: process.env.BUSABASE_API_KEY, // required when the server enables access-key auth
 });
 
 await bb.health(); // { status, timestamp }
@@ -35,10 +35,17 @@ Every constructor field is optional and falls back to an environment variable:
 | Option    | Env var              | Default                    |
 | --------- | -------------------- | -------------------------- |
 | `baseUrl` | `BUSABASE_BASE_URL`  | `https://busabase.com`     |
-| `apiKey`  | `BUSABASE_API_KEY`   | — (none; local is open)    |
+| `apiKey`  | `BUSABASE_API_KEY`   | — (unless the server requires one) |
 | `spaceId` | `BUSABASE_SPACE_ID`  | no header; multi-space Cloud calls require one |
 
 `baseUrl` accepts either the server root (`http://host`) or the full API path (`http://host/api/v1`) — the `/api/v1` suffix is normalized away.
+
+The SDK sends the key as an `Authorization: Bearer …` header. Busabase Cloud
+validates API keys and applies their configured permission ceiling. A
+self-hosted server configured with `BUSABASE_ACCESS_KEY` accepts that same
+value for API requests. It is one shared owner-level key, not a set of scoped
+user credentials; keep it in a server-side environment variable and out of
+browser bundles.
 
 ## Local AirApp OAuth
 

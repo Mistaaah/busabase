@@ -16,7 +16,63 @@ import {
 import { type NextRequest, NextResponse } from "next/server";
 import { DEMO_LOCALE_HEADER, resolveDemoMode } from "openlib/ui/dashboard/demo";
 import { normalizeBusabaseAppLocale } from "~/i18n/app-locale";
+import {
+  ACCESS_KEY_COOKIE,
+  accessSessionIsValid,
+  bearerAccessKeyMatches,
+  configuredAccessKey,
+} from "~/lib/access-auth";
 import { getLegacyDashboardRedirect } from "~/lib/dashboard-routes";
+
+const isPublicAccessRoute = (pathname: string): boolean =>
+  pathname === "/access" ||
+  pathname.startsWith("/access/") ||
+  pathname === "/api/access/login" ||
+  pathname === "/api/access/logout" ||
+  pathname === "/api/health" ||
+  pathname === "/api/health/deep" ||
+  pathname.startsWith("/api/workflow-hooks/");
+
+const authenticateRequest = (request: NextRequest): NextResponse | null => {
+  const { pathname } = request.nextUrl;
+  if (isPublicAccessRoute(pathname) || request.method === "OPTIONS") return null;
+
+  const accessKey = configuredAccessKey();
+  if (!accessKey) {
+    if (process.env.NODE_ENV !== "production") return null;
+    const body = pathname.startsWith("/api/")
+      ? { error: "Busabase access is not configured." }
+      : "Busabase access is not configured.";
+    return NextResponse.json(body, {
+      status: 503,
+      headers: { "cache-control": "no-store" },
+    });
+  }
+
+  const authenticated =
+    bearerAccessKeyMatches(request.headers.get("authorization"), accessKey) ||
+    accessSessionIsValid(request.cookies.get(ACCESS_KEY_COOKIE)?.value, accessKey);
+  if (authenticated) return null;
+
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json(
+      { error: "An access key is required." },
+      {
+        status: 401,
+        headers: {
+          "cache-control": "no-store",
+          "www-authenticate": 'Bearer realm="Busabase"',
+        },
+      },
+    );
+  }
+
+  const login = request.nextUrl.clone();
+  login.pathname = "/access";
+  login.search = "";
+  login.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
+  return NextResponse.redirect(login, 307);
+};
 
 /** A page query param from the request's own URL or, for SPA calls, the `Referer`. */
 const readParam = (request: NextRequest, key: string): string | null => {
@@ -95,6 +151,9 @@ const handleEmbedRequest = async (
 };
 
 export async function proxy(request: NextRequest) {
+  const authResponse = authenticateRequest(request);
+  if (authResponse) return authResponse;
+
   const redirectPath = getLegacyDashboardRedirect(request.nextUrl.pathname);
   if (redirectPath) {
     const redirected = request.nextUrl.clone();
@@ -132,5 +191,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/:path*", "/embed/:path*", "/__sw__.js"],
+  // Match every application route so a new page or API route cannot become a
+  // public bypass by being omitted from a list. Build assets remain public.
+  matcher: ["/((?!_next/static|favicon.ico).*)"],
 };

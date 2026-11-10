@@ -218,7 +218,7 @@ Busabase runs on Postgres (or embedded PGlite) itself; it is the workspace on to
 
 `apps/busabase` is the local, single-workspace Next.js shell. The workspace engine lives in `packages/busabase-core`: nodes, records, file trees, rich node types, review primitives, search, agents, and API contracts — exposed through MCP, OpenAPI, and `busabase-cli`. Cloud runs the same engine with multi-tenant identity, permissions, and hosted storage.
 
-**Security:** the open-source server is designed for a trusted local machine or private network. Do not expose write endpoints to the public internet without authentication and a reverse proxy; use scoped credentials and Cloud Connect for remote access.
+**Security:** the open-source server is designed for a trusted local machine or private network. Do not expose write endpoints to the public internet without authentication and a reverse proxy. For a self-hosted single-user instance, set `BUSABASE_ACCESS_KEY` to a random value of at least 32 characters to require one access key for the dashboard and API; browser users enter it once, and API clients send it as a bearer token. This shared key has full owner-level access and does not provide per-user scopes. Use Busabase Cloud for multi-user roles and scoped credentials.
 
 ## Contributing
 
