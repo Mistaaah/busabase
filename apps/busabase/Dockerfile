@@ -88,7 +88,7 @@ ENV NODE_ENV=production \
     PG_DATABASE_URL=pglite:///data/pgdata \
     STORAGE_URL="local:/data/storage?base_url=/api/storage&upload_url=/api/storage/upload"
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates ripgrep && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates gosu ripgrep && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/apps/busabase/.next/standalone ./
 COPY --from=build /app/apps/busabase/.next/static ./apps/busabase/.next/static
@@ -106,7 +106,8 @@ COPY --from=build /app/packages/openlib ./packages/openlib
 RUN ln -s ../../../packages/openlib apps/busabase/node_modules/openlib
 
 RUN mkdir -p /data/pgdata /data/storage && useradd -r -u 1001 nextjs && chown -R nextjs:nextjs /app /data
-USER nextjs
+COPY apps/busabase/railway-entrypoint.sh /usr/local/bin/busabase-entrypoint.sh
+RUN chmod 755 /usr/local/bin/busabase-entrypoint.sh
 
 # Persist the database + attachments by mounting a volume at /data.
 # For Docker, mount the host's ~/.busabase/data here to share one local database
@@ -116,4 +117,4 @@ USER nextjs
 EXPOSE 15419
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD curl -f http://localhost:15419/api/health || exit 1
 
-CMD ["node", "apps/busabase/server.js"]
+CMD ["/usr/local/bin/busabase-entrypoint.sh"]
