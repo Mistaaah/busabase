@@ -108,9 +108,10 @@ RUN ln -s ../../../packages/openlib apps/busabase/node_modules/openlib
 RUN mkdir -p /data/pgdata /data/storage && useradd -r -u 1001 nextjs && chown -R nextjs:nextjs /app /data
 USER nextjs
 
-# Persist the database + attachments. Mount the host's ~/.busabase/data here to
-# share one local database with `npx busabase server` / busabase-desktop.
-VOLUME /data
+# Persist the database + attachments by mounting a volume at /data.
+# For Docker, mount the host's ~/.busabase/data here to share one local database
+# with `npx busabase server` / busabase-desktop. On Railway, attach its volume at
+# /data in the service settings.
 
 EXPOSE 15419
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD curl -f http://localhost:15419/api/health || exit 1
